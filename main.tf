@@ -2,7 +2,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
-      version = "~> 0.78.0"
+      version = "~> 0.99.0"
     }
   }
 
@@ -13,11 +13,6 @@ provider "proxmox" {
   endpoint  = var.proxmox_endpoint
   api_token = var.proxmox_api_token
   insecure  = var.proxmox_insecure
-
-  ssh {
-    agent    = true
-    username = var.proxmox_ssh_username
-  }
 }
 
 resource "proxmox_virtual_environment_container" "debian13" {
@@ -32,8 +27,13 @@ resource "proxmox_virtual_environment_container" "debian13" {
     hostname = var.container_hostname
 
     user_account {
-      keys     = var.ssh_public_keys
       password = var.root_password
+    }
+
+    ip_config {
+      ipv4 {
+        address = "dhcp"
+      }
     }
   }
 

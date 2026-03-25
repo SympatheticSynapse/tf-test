@@ -17,12 +17,6 @@ variable "proxmox_insecure" {
   default     = false
 }
 
-variable "proxmox_ssh_username" {
-  description = "SSH username for the Proxmox host (used by the bpg provider for file uploads)"
-  type        = string
-  default     = "root"
-}
-
 variable "proxmox_node" {
   description = "Proxmox node name to deploy the container on"
   type        = string
@@ -95,21 +89,6 @@ variable "network_bridge" {
   default     = "vmbr0"
 }
 
-# ─── Access ──────────────────────────────────────────────────────────────────
-
-variable "ssh_public_keys" {
-  description = "List of SSH public keys to inject into the root account"
-  type        = list(string)
-  default     = []
-}
-
-variable "root_password" {
-  description = "Root password for the container (use SSH keys in production)"
-  type        = string
-  sensitive   = true
-  default     = null
-}
-
 # ─── Features ─────────────────────────────────────────────────────────────────
 
 variable "enable_nesting" {
@@ -118,3 +97,11 @@ variable "enable_nesting" {
   default     = false
 }
 
+# ─── Root ─────────────────────────────────────────────────────────────────────
+
+variable "root_password" {
+  description = "Root password for the container"
+  type        = string
+  sensitive   = true
+  # no default = Terraform will prompt you
+}
