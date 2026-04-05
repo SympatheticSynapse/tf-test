@@ -2,11 +2,14 @@ terraform {
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
-      version = "~> 0.99.0"
+      version = "~> 0.99"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.7"
     }
   }
-
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.5"
 }
 
 provider "proxmox" {
@@ -15,61 +18,67 @@ provider "proxmox" {
   insecure  = var.proxmox_insecure
 }
 
-resource "proxmox_virtual_environment_container" "debian13" {
-  description  = "Debian 13 LXC managed by Terraform"
-  node_name    = var.proxmox_node
-  vm_id        = var.container_id
-  tags         = ["terraform", "debian13"]
-  started      = true
-  unprivileged = true
+data "local_file" "ssh_public_key" {
+  filename = "/Users/corelinkmobile/.ssh/id_rsa.pub"
+}
+
+resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
+  name      = "test-ubuntu"
+  node_name = "core-lab"
+
+  # should be true if qemu agent is not installed / enabled on the VM
+  stop_on_destroy = true
 
   initialization {
-    hostname = var.container_hostname
-
-    user_account {
-      password = var.root_password
-    }
+    # uncomment and specify the datastore for cloud-init disk if default `local-lvm` is not available
+    # datastore_id = "local-lvm"
 
     ip_config {
       ipv4 {
-        address = "dhcp"
+        address = "192.168.3.233/24"
+        gateway = "192.168.3.1"
       }
+    }
+
+    user_account {
+      username = "ubuntu"
+      keys     = [trimspace(data.local_file.ssh_public_key.content)]
     }
   }
 
-  operating_system {
-    template_file_id = var.template_file_id
-    type             = "debian"
-  }
-
-  cpu {
-    cores = var.cpu_cores
-  }
-
-  memory {
-    dedicated = var.memory_mb
-    swap      = var.swap_mb
-  }
-
   disk {
-    datastore_id = var.storage_datastore
-    size         = var.disk_size_gb
+    datastore_id = "local-lvm"
+    import_from  = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
+    interface    = "virtio0"
+    iothread     = true
+    discard      = "on"
+    size         = 20
   }
 
-  network_interface {
-    name     = "eth0"
-    bridge   = var.network_bridge
-    firewall = false
-  }
-
-  features {
-    nesting = var.enable_nesting
-  }
-
-  lifecycle {
-    ignore_changes = [
-      initialization[0].user_account[0].password,
-    ]
+  network_device {
+    bridge = "vmbr0"
   }
 }
 
+resource "proxmox_virtual_environment_download_file" "ubuntu_cloud_image" {
+  content_type = "import"
+  datastore_id = "local"
+  node_name    = "core-lab"
+  url          = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+  # need to rename the file to *.qcow2 to indicate the actual file format for import
+  file_name = "jammy-server-cloudimg-amd64.qcow2"
+}
+
+# ------------------------------------------------------------
+# NFS Storage Resources
+# ------------------------------------------------------------
+resource "proxmox_virtual_environment_storage_nfs" "nfs" {
+  for_each = { for share in var.nfs_shares : share.id => share }
+
+  id      = each.value.id
+  nodes   = var.proxmox_nodes
+  server  = var.nas_ip
+  export  = each.value.export
+  content = each.value.content
+  options = "vers=3"
+}
