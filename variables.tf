@@ -1,150 +1,199 @@
-# ---------------------------------------------------------------------------
-# variables.tf — Option 1 (dedicated terraform Linux user)
-# ---------------------------------------------------------------------------
-
-# ── Proxmox connection ──────────────────────────────────────────────────────
-
+# ------------------------------------------------------------
+# Proxmox Provider
+# ------------------------------------------------------------
 variable "proxmox_endpoint" {
-  description = "Proxmox API URL, e.g. https://192.168.1.10:8006/"
+  description = "URL of the Proxmox API endpoint (e.g., https://192.168.3.10:8006)"
   type        = string
 }
 
 variable "proxmox_api_token" {
-  description = "API token: terraform@pve!mytoken=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  description = "Proxmox API token in the format 'USER@REALM!TOKENID=SECRET'"
   type        = string
   sensitive   = true
 }
 
 variable "proxmox_insecure" {
-  description = "Skip TLS verification (true for self-signed certs)"
+  description = "Skip TLS verification for the Proxmox API (set to false in production)"
   type        = bool
   default     = false
 }
 
-variable "proxmox_node" {
-  description = "Proxmox node name as shown in the UI"
+variable "proxmox_node_name" {
+  description = "Name of the Proxmox node to deploy resources on"
   type        = string
-  default     = "pve"
+  default     = "core-lab"
 }
 
 variable "proxmox_nodes" {
-  description = "List of Proxmox node names to attach storage to"
-  type        = list(string)
-}
-
-# ── Storage ──────────────────────────────────────────────────────────────────
-
-variable "image_datastore" {
-  description = "Datastore for the cloud image (must have ISO content type enabled)"
-  type        = string
-  default     = "local"
-}
-
-variable "vm_datastore" {
-  description = "Datastore for VM disks and cloud-init drive"
-  type        = string
-  default     = "local-lvm"
-}
-
-# ── Cloud image ───────────────────────────────────────────────────────────────
-
-variable "debian13_image_url" {
-  description = "Direct URL to the Debian 13 genericcloud qcow2 image"
-  type        = string
-  default     = "https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-genericcloud-amd64-daily.qcow2"
-}
-
-# ── VM identity ───────────────────────────────────────────────────────────────
-
-variable "vm_id" {
-  type    = number
-  default = 200
-}
-
-variable "vm_name" {
-  type    = string
-  default = "debian13-cloud"
-}
-
-variable "start_on_boot" {
-  type    = bool
-  default = false
-}
-
-# ── Hardware ──────────────────────────────────────────────────────────────────
-
-variable "cpu_cores" {
-  type    = number
-  default = 2
-}
-
-variable "memory_mb" {
-  type    = number
-  default = 2048
-}
-
-variable "disk_size_gb" {
-  type    = number
-  default = 20
-}
-
-# ── Network ───────────────────────────────────────────────────────────────────
-
-variable "network_bridge" {
-  type    = string
-  default = "vmbr0"
-}
-
-variable "ip_address" {
-  description = "IPv4 in CIDR notation (192.168.1.100/24) or \"dhcp\""
-  type        = string
-  default     = "dhcp"
-}
-
-variable "gateway" {
-  type    = string
-  default = ""
-}
-
-variable "dns_servers" {
-  type    = list(string)
-  default = ["1.1.1.1", "8.8.8.8"]
-}
-
-variable "dns_search_domain" {
-  type    = string
-  default = ""
-}
-
-# ── Cloud-Init ────────────────────────────────────────────────────────────────
-
-variable "cloud_init_user" {
-  type    = string
-  default = "debian"
-}
-
-variable "cloud_init_password" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
-variable "ssh_public_keys" {
-  description = "SSH public keys for the VM's default user"
+  description = "List of Proxmox nodes for storage resources"
   type        = list(string)
   default     = []
 }
 
+# ------------------------------------------------------------
+# SSH
+# ------------------------------------------------------------
+variable "ssh_public_key_path" {
+  description = "Path to the SSH public key file to inject into the VM"
+  type        = string
+  default     = "~/.ssh/id_rsa.pub"
+}
+
+# ------------------------------------------------------------
+# Ubuntu Cloud Image
+# ------------------------------------------------------------
+variable "ubuntu_cloud_image_url" {
+  description = "URL of the Ubuntu cloud image to download"
+  type        = string
+  default     = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+}
+
+variable "ubuntu_cloud_image_filename" {
+  description = "Filename to store the cloud image as (must end in .qcow2 for import)"
+  type        = string
+  default     = "jammy-server-cloudimg-amd64.qcow2"
+}
+
+variable "image_datastore_id" {
+  description = "Proxmox datastore ID to store the downloaded cloud image"
+  type        = string
+  default     = "local"
+}
+
+# ------------------------------------------------------------
+# VM - General
+# ------------------------------------------------------------
+variable "vm_name" {
+  description = "Name of the virtual machine"
+  type        = string
+  default     = "test-ubuntu"
+}
+
+variable "vm_stop_on_destroy" {
+  description = "Force stop the VM on terraform destroy (useful when QEMU agent is not installed)"
+  type        = bool
+  default     = true
+}
+
+variable "vm_agent_enabled" {
+  description = "Enable QEMU guest agent (requires qemu-guest-agent installed in the VM)"
+  type        = bool
+  default     = false
+}
+
+# ------------------------------------------------------------
+# VM - CPU
+# ------------------------------------------------------------
+variable "vm_cpu_cores" {
+  description = "Number of CPU cores per socket"
+  type        = number
+  default     = 2
+}
+
+variable "vm_cpu_sockets" {
+  description = "Number of CPU sockets"
+  type        = number
+  default     = 1
+}
+
+variable "vm_cpu_type" {
+  description = "CPU type/model (use 'host' for best performance, 'kvm64' for portability)"
+  type        = string
+  default     = "x86-64-v2-AES"
+}
+
+# ------------------------------------------------------------
+# VM - Memory
+# ------------------------------------------------------------
+variable "vm_memory_mb" {
+  description = "Amount of dedicated memory in megabytes"
+  type        = number
+  default     = 2048
+}
+
+# ------------------------------------------------------------
+# VM - Disk
+# ------------------------------------------------------------
+variable "vm_disk_size_gb" {
+  description = "Size of the primary VM disk in gigabytes"
+  type        = number
+  default     = 20
+}
+
+variable "vm_disk_datastore_id" {
+  description = "Proxmox datastore ID for the VM disk and cloud-init drive"
+  type        = string
+  default     = "local-lvm"
+}
+
+# ------------------------------------------------------------
+# VM - Network
+# ------------------------------------------------------------
+variable "vm_ipv4_address" {
+  description = "Static IPv4 address with CIDR notation (e.g., 192.168.3.233/24)"
+  type        = string
+  default     = "192.168.3.233/24"
+}
+
+variable "vm_ipv4_gateway" {
+  description = "IPv4 default gateway"
+  type        = string
+  default     = "192.168.3.1"
+}
+
+variable "vm_network_bridge" {
+  description = "Proxmox network bridge to attach the VM NIC to"
+  type        = string
+  default     = "vmbr0"
+}
+
+variable "vm_network_model" {
+  description = "VM NIC model (virtio recommended for best performance)"
+  type        = string
+  default     = "virtio"
+}
+
+variable "vm_network_firewall" {
+  description = "Enable Proxmox firewall on the VM NIC"
+  type        = bool
+  default     = false
+}
+
+# ------------------------------------------------------------
+# VM - Cloud-Init User
+# ------------------------------------------------------------
+variable "vm_username" {
+  description = "Username to create via cloud-init"
+  type        = string
+  default     = "ubuntu"
+}
+
+variable "vm_password" {
+  description = "Password for the cloud-init user account"
+  type        = string
+  sensitive   = true
+}
+
+# ------------------------------------------------------------
+# NFS Storage
+# ------------------------------------------------------------
 variable "nas_ip" {
-  description = "NAS IP Address"
+  description = "IP address of the NAS / NFS server"
   type        = string
 }
 
 variable "nfs_shares" {
-  description = "List of NFS shares to add to Proxmox"
+  description = "List of NFS share definitions to add as Proxmox storage"
   type = list(object({
     id      = string
     export  = string
     content = list(string)
   }))
+  default = []
+}
+
+variable "nfs_options" {
+  description = "NFS mount options string"
+  type        = string
+  default     = "vers=3"
 }
