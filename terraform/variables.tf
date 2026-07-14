@@ -1,7 +1,7 @@
 # ------------------------------------------------------------
 # Proxmox Provider
 # ------------------------------------------------------------
-variable "proxmox_endpoint" {
+variable "proxmox_api_url" {
   description = "URL of the Proxmox API endpoint (e.g., https://192.168.3.10:8006)"
   type        = string
 }
@@ -16,12 +16,6 @@ variable "proxmox_insecure" {
   description = "Skip TLS verification for the Proxmox API (set to false in production)"
   type        = bool
   default     = false
-}
-
-variable "proxmox_node_name" {
-  description = "Name of the Proxmox node to deploy resources on"
-  type        = string
-  default     = "core-lab"
 }
 
 variable "proxmox_nodes" {
@@ -40,18 +34,18 @@ variable "ssh_public_key_path" {
 }
 
 # ------------------------------------------------------------
-# Ubuntu Cloud Image
+# Linux Cloud Image
 # ------------------------------------------------------------
-variable "ubuntu_cloud_image_url" {
-  description = "URL of the Ubuntu cloud image to download"
+variable "linux_cloud_image_url" {
+  description = "URL of the Linux cloud image to download"
   type        = string
-  default     = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+  default     = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
 }
 
-variable "ubuntu_cloud_image_filename" {
+variable "linux_cloud_image_filename" {
   description = "Filename to store the cloud image as (must end in .qcow2 for import)"
   type        = string
-  default     = "jammy-server-cloudimg-amd64.qcow2"
+  default     = "debian-13-genericcloud-amd64.img"
 }
 
 variable "image_datastore_id" {
@@ -165,7 +159,7 @@ variable "vm_network_firewall" {
 variable "vm_username" {
   description = "Username to create via cloud-init"
   type        = string
-  default     = "ubuntu"
+  default     = "test"
 }
 
 variable "vm_password" {
