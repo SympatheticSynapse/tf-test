@@ -13,7 +13,7 @@ resource "proxmox_download_file" "linux_cloud_image" {
 }
 
 # ------------------------------------------------------------
-# Control Plane VMs (one per noded)
+# Control Plane VMs (one per node)
 # ------------------------------------------------------------
 resource "proxmox_virtual_environment_vm" "control_plane" {
   for_each  = var.proxmox_nodes
@@ -24,13 +24,13 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
   stop_on_destroy = var.vm_stop_on_destroy
 
   cpu {
-    cores   = var.vm_cpu_cores
+    cores   = var.vm_cp_cpu_cores
     sockets = var.vm_cpu_sockets
     type    = var.vm_cpu_type
   }
 
   memory {
-    dedicated = var.vm_memory_mb
+    dedicated = var.vm_cp_memory_mb
   }
 
   disk {
@@ -39,7 +39,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
     interface    = "virtio0"
     iothread     = true
     discard      = "on"
-    size         = var.vm_disk_size_gb
+    size         = var.vm_cp_disk_size_gb
   }
 
   network_device {
@@ -80,7 +80,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
 }
 
 # ------------------------------------------------------------
-# Worker VMs (one per noded)
+# Worker VMs (one per node)
 # ------------------------------------------------------------
 resource "proxmox_virtual_environment_vm" "worker" {
   for_each  = var.proxmox_nodes
@@ -91,13 +91,13 @@ resource "proxmox_virtual_environment_vm" "worker" {
   stop_on_destroy = var.vm_stop_on_destroy
 
   cpu {
-    cores   = var.vm_cpu_cores
+    cores   = var.vm_wk_cpu_cores
     sockets = var.vm_cpu_sockets
     type    = var.vm_cpu_type
   }
 
   memory {
-    dedicated = var.vm_memory_mb
+    dedicated = var.vm_wk_memory_mb
   }
 
   disk {
@@ -106,7 +106,7 @@ resource "proxmox_virtual_environment_vm" "worker" {
     interface    = "virtio0"
     iothread     = true
     discard      = "on"
-    size         = var.vm_disk_size_gb
+    size         = var.vm_wk_disk_size_gb
   }
 
   network_device {

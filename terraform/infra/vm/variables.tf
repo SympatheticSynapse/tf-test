@@ -37,11 +37,6 @@ variable "proxmox_nodes" {
     pve3 = { cp_ip = "192.168.3.13/24", worker_ip = "192.168.3.23/24", cp_vmid = 8003, worker_vmid = 8103, datastore_id = "vmdata_node3" }
   }
 }
-# variable "proxmox_nodes" {
-#   description = "List of Proxmox nodes for storage resources"
-#   type        = list(string)
-#   default     = []
-# }
 
 # ------------------------------------------------------------
 # SSH
@@ -73,15 +68,6 @@ variable "image_datastore_id" {
   default     = "local"
 }
 
-# ------------------------------------------------------------
-# VM - General
-# ------------------------------------------------------------
-# variable "vm_name" {
-#   description = "Name of the virtual machine"
-#   type        = string
-#   default     = "test-ubuntu"
-# }
-
 variable "vm_stop_on_destroy" {
   description = "Force stop the VM on terraform destroy (useful when QEMU agent is not installed)"
   type        = bool
@@ -97,10 +83,16 @@ variable "vm_agent_enabled" {
 # ------------------------------------------------------------
 # VM - CPU
 # ------------------------------------------------------------
-variable "vm_cpu_cores" {
+variable "vm_cp_cpu_cores" {
   description = "Number of CPU cores per socket"
   type        = number
   default     = 2
+}
+
+variable "vm_wk_cpu_cores" {
+  description = "Number of CPU cores per socket"
+  type        = number
+  default     = 4
 }
 
 variable "vm_cpu_sockets" {
@@ -118,35 +110,32 @@ variable "vm_cpu_type" {
 # ------------------------------------------------------------
 # VM - Memory
 # ------------------------------------------------------------
-variable "vm_memory_mb" {
+variable "vm_cp_memory_mb" {
   description = "Amount of dedicated memory in megabytes"
   type        = number
-  default     = 2048
+  default     = 4096
+}
+
+variable "vm_wk_memory_mb" {
+  description = "Amount of dedicated memory in megabytes"
+  type        = number
+  default     = 8192
 }
 
 # ------------------------------------------------------------
 # VM - Disk
 # ------------------------------------------------------------
-variable "vm_disk_size_gb" {
+variable "vm_cp_disk_size_gb" {
   description = "Size of the primary VM disk in gigabytes"
   type        = number
-  default     = 20
+  default     = 40
 }
 
-# variable "vm_disk_datastore_id" {
-#   description = "Proxmox datastore ID for the VM disk and cloud-init drive"
-#   type        = string
-#   default     = "local-lvm"
-# }
-
-# ------------------------------------------------------------
-# VM - Network
-# ------------------------------------------------------------
-# variable "vm_ipv4_address" {
-#   description = "Static IPv4 address with CIDR notation (e.g., 192.168.3.233/24)"
-#   type        = string
-#   default     = "192.168.3.233/24"
-# }
+variable "vm_wk_disk_size_gb" {
+  description = "Size of the primary VM disk in gigabytes"
+  type        = number
+  default     = 60
+}
 
 variable "vm_ipv4_gateway" {
   description = "IPv4 default gateway"
@@ -187,26 +176,3 @@ variable "vm_password" {
   sensitive   = true
 }
 
-# ------------------------------------------------------------
-# NFS Storage
-# ------------------------------------------------------------
-variable "nas_ip" {
-  description = "IP address of the NAS / NFS server"
-  type        = string
-}
-
-variable "nfs_shares" {
-  description = "List of NFS share definitions to add as Proxmox storage"
-  type = list(object({
-    id      = string
-    export  = string
-    content = list(string)
-  }))
-  default = []
-}
-
-variable "nfs_options" {
-  description = "NFS mount options string"
-  type        = string
-  default     = "vers=3"
-}
