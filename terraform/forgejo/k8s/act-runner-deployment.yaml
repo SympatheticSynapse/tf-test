@@ -1,0 +1,87 @@
+# Registration token: obtain from Forgejo with
+#   docker exec -it forgejo forgejo forgejo-cli actions generate-runner-token
+# (org/repo scope as you prefer), then:
+#   kubectl create secret generic act-runner-token \
+#     --namespace forgejo-ci \
+#     --from-literal=token=<paste-token>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: act-runner
+  namespace: forgejo-ci
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: act-runner
+  template:
+    metadata:
+      labels:
+        app: act-runner
+    spec:
+      serviceAccountName: act-runner
+      # Uncomment to keep CI load off control-plane nodes:
+      # tolerations:
+      #   - key: "ci-workload"
+      #     operator: "Exists"
+      #     effect: "NoSchedule"
+      # nodeSelector:
+      #   workload: ci
+
+      containers:
+        - name: docker-dind
+          image: docker:27-dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "3",    memory: "4Gi" }
+          volumeMounts:
+            - name: docker-storage
+              mountPath: /var/lib/docker
+
+        - name: runner
+          image: code.forgejo.org/forgejo/runner:6
+          command: ["sh", "-c"]
+          args:
+            - |
+              until docker info >/dev/null 2>&1; do echo waiting for docker...; sleep 2; done
+              forgejo-runner register \
+                --no-interactive \
+                --instance "http://forgejo.forgejo-ci.svc.cluster.local:3000" \
+                --token "$(cat /run/secrets/act-runner-token/token)" \
+                --name "$(hostname)" \
+                --labels "k8s-nvme:docker://node:20-bookworm,generic:docker://catthehacker/ubuntu:act-latest" \
+                --config /etc/act-runner/config.yaml
+              exec forgejo-runner daemon --config /etc/act-runner/config.yaml
+          env:
+            - name: DOCKER_HOST
+              value: "tcp://localhost:2375"
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "2",    memory: "2Gi" }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/act-runner
+            - name: cache
+              mountPath: /cache
+            - name: token
+              mountPath: /run/secrets/act-runner-token
+              readOnly: true
+
+      volumes:
+        - name: config
+          configMap:
+            name: act-runner-config
+        - name: cache
+          persistentVolumeClaim:
+            claimName: act-runner-cache
+        - name: token
+          secret:
+            secretName: act-runner-token
+        - name: docker-storage
+          emptyDir: {}

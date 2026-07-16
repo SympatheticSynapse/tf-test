@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgejo-ci
+---
+# Identity the runner pods use. Give it deploy rights ONLY in namespaces
+# your pipelines are actually allowed to touch - do not bind cluster-admin.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: act-runner
+  namespace: forgejo-ci
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-deployer
+  namespace: default            # duplicate this Role+RoleBinding pair per namespace CI is allowed to deploy into
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets", "pods"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-deployer-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: act-runner
+    namespace: forgejo-ci
+roleRef:
+  kind: Role
+  name: ci-deployer
+  apiGroup: rbac.authorization.k8s.io

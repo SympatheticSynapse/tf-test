@@ -1,0 +1,25 @@
+# Adjust provisioner/parameters to whatever CSI you're running for the
+# vmdata-nodeX NVMe pools (e.g. democratic-csi, local-path-provisioner, or
+# the Proxmox CSI plugin). This is illustrative of intent: fast local
+# storage for build/cache workspace, not the HDD pool.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nvme-fast
+provisioner: driver.longhorn.io   # replace with your actual CSI provisioner
+parameters:
+  numberOfReplicas: "1"           # runner workspace is disposable, no need for replication
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: act-runner-cache
+  namespace: forgejo-ci
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: nvme-fast
+  resources:
+    requests:
+      storage: 100Gi

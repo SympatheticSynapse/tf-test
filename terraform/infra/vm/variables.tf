@@ -113,13 +113,13 @@ variable "vm_cpu_type" {
 variable "vm_cp_memory_mb" {
   description = "Amount of dedicated memory in megabytes"
   type        = number
-  default     = 4096
+  default     = 8192
 }
 
 variable "vm_wk_memory_mb" {
   description = "Amount of dedicated memory in megabytes"
   type        = number
-  default     = 8192
+  default     = 12288
 }
 
 # ------------------------------------------------------------

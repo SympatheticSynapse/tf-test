@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: act-runner-config
+  namespace: forgejo-ci
+data:
+  config.yaml: |
+    log:
+      level: info
+
+    runner:
+      # how many jobs this runner instance will run concurrently
+      capacity: 2
+      envs: {}
+      timeout: 3h
+      insecure: false
+      fetch_timeout: 5s
+      fetch_interval: 2s
+      labels:
+        - "k8s-nvme:docker://node:20-bookworm"
+        - "generic:docker://catthehacker/ubuntu:act-latest"
+
+    cache:
+      enabled: true
+      dir: /cache
+      host: ""
+      port: 0
+
+    container:
+      network: ""
+      privileged: true      # required for DinD unless you switch to sysbox/kaniko
+      options:
+      workdir_parent: /workspace
