@@ -2,25 +2,22 @@
 # Linux Cloud Image Download
 # ------------------------------------------------------------
 resource "proxmox_download_file" "linux_cloud_image" {
-  for_each     = var.proxmox_nodes
-  content_type = "import"
-  datastore_id = var.image_datastore_id
-  #node_name    = var.proxmox_node_name
-  node_name = each.key
-  url       = var.linux_cloud_image_url
-  file_name = var.linux_cloud_image_filename
-  # this will always pull the latest
-  overwrite = false
+  for_each            = var.proxmox_nodes
+  content_type        = "import"
+  datastore_id        = var.image_datastore_id
+  node_name           = each.key
+  url                 = var.linux_cloud_image_url
+  file_name           = var.linux_cloud_image_filename
+  overwrite           = true
+  overwrite_unmanaged = true # allows adopting/replacing files Terraform doesn't already track
 }
 
 # ------------------------------------------------------------
 # Control Plane VMs (one per noded)
 # ------------------------------------------------------------
 resource "proxmox_virtual_environment_vm" "control_plane" {
-  for_each = var.proxmox_nodes
-  name     = "k8s-cp-${each.key}"
-  #name     = var.vm_name
-  #node_name = var.proxmox_node_name
+  for_each  = var.proxmox_nodes
+  name      = "k8s-cp-${each.key}"
   node_name = each.key
   vm_id     = each.value.cp_vmid
 
@@ -86,10 +83,8 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
 # Worker VMs (one per noded)
 # ------------------------------------------------------------
 resource "proxmox_virtual_environment_vm" "worker" {
-  for_each = var.proxmox_nodes
-  name     = "k8s-wk-${each.key}"
-  #name     = var.vm_name
-  #node_name = var.proxmox_node_name
+  for_each  = var.proxmox_nodes
+  name      = "k8s-wk-${each.key}"
   node_name = each.key
   vm_id     = each.value.worker_vmid
 
