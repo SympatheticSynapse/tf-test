@@ -76,6 +76,8 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
       password = var.vm_password
       keys     = [trimspace(data.local_file.ssh_public_key.content)]
     }
+
+    vendor_data_file_id = each.key == var.bootstrap_node ? proxmox_virtual_environment_file.rke2_cp_bootstrap.id : proxmox_virtual_environment_file.rke2_cp_join[each.key].id
   }
 }
 
@@ -143,5 +145,61 @@ resource "proxmox_virtual_environment_vm" "worker" {
       password = var.vm_password
       keys     = [trimspace(data.local_file.ssh_public_key.content)]
     }
+
+    vendor_data_file_id = proxmox_virtual_environment_file.rke2_worker[each.key].id
+  }
+}
+
+# ------------------------------------------------------------
+# RKE2 vendor-data (layered on top of auto-generated user-data)
+# ------------------------------------------------------------
+
+resource "proxmox_virtual_environment_file" "rke2_cp_bootstrap" {
+  node_name    = var.bootstrap_node
+  content_type = "snippets"
+  datastore_id = "local"
+
+  source_raw {
+    file_name = "rke2-cp-bootstrap.yaml"
+    data = templatefile("${path.module}/cloud-init/rke2-server-bootstrap.yaml.tpl", {
+      rke2_token   = var.rke2_token
+      rke2_version = var.rke2_version
+      tls_san      = var.cluster_vip
+    })
+  }
+}
+
+resource "proxmox_virtual_environment_file" "rke2_cp_join" {
+  for_each = {
+    for k, v in var.proxmox_nodes : k => v if k != var.bootstrap_node
+  }
+  node_name    = each.key
+  content_type = "snippets"
+  datastore_id = "local"
+
+  source_raw {
+    file_name = "rke2-cp-join-${each.key}.yaml"
+    data = templatefile("${path.module}/cloud-init/rke2-server-join.yaml.tpl", {
+      rke2_token   = var.rke2_token
+      rke2_version = var.rke2_version
+      server_url   = "https://${var.proxmox_nodes[var.bootstrap_node].cp_ip}:9345"
+      tls_san      = var.cluster_vip
+    })
+  }
+}
+
+resource "proxmox_virtual_environment_file" "rke2_worker" {
+  for_each     = var.proxmox_nodes
+  node_name    = each.key
+  content_type = "snippets"
+  datastore_id = "local"
+
+  source_raw {
+    file_name = "rke2-worker-${each.key}.yaml"
+    data = templatefile("${path.module}/cloud-init/rke2-agent.yaml.tpl", {
+      rke2_token   = var.rke2_token
+      rke2_version = var.rke2_version
+      server_url   = "https://${var.proxmox_nodes[var.bootstrap_node].cp_ip}:9345"
+    })
   }
 }

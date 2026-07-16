@@ -176,3 +176,29 @@ variable "vm_password" {
   sensitive   = true
 }
 
+# ------------------------------------------------------------
+# RKE2 Bootstrap
+# ------------------------------------------------------------
+
+variable "bootstrap_node" {
+  description = "Which Proxmox node key hosts the RKE2 cluster-init CP node"
+  type        = string
+  default     = "core-node-1"
+}
+
+variable "rke2_token" {
+  description = "Shared secret all nodes use to join the cluster"
+  type        = string
+  sensitive   = true
+}
+
+variable "rke2_version" {
+  type    = string
+  default = "v1.31.4+rke2r1"
+}
+
+variable "cluster_vip" {
+  description = "TLS SAN for the API server (VIP/LB address if you add one later)"
+  type        = string
+  default     = "10.10.10.10"
+}
