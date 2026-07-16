@@ -182,7 +182,7 @@ resource "proxmox_virtual_environment_file" "rke2_cp_join" {
     data = templatefile("${path.module}/cloud-init/rke2-server-join.yaml.tpl", {
       rke2_token   = var.rke2_token
       rke2_version = var.rke2_version
-      server_url   = "https://${var.proxmox_nodes[var.bootstrap_node].cp_ip}:9345"
+      server_url   = "https://${split("/", var.proxmox_nodes[var.bootstrap_node].cp_ip)[0]}:9345"
       tls_san      = var.cluster_vip
     })
   }
@@ -199,7 +199,7 @@ resource "proxmox_virtual_environment_file" "rke2_worker" {
     data = templatefile("${path.module}/cloud-init/rke2-agent.yaml.tpl", {
       rke2_token   = var.rke2_token
       rke2_version = var.rke2_version
-      server_url   = "https://${var.proxmox_nodes[var.bootstrap_node].cp_ip}:9345"
+      server_url   = "https://${split("/", var.proxmox_nodes[var.bootstrap_node].cp_ip)[0]}:9345"
     })
   }
 }
