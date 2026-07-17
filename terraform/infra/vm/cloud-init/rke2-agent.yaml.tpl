@@ -1,6 +1,8 @@
 #cloud-config
 package_update: true
 runcmd:
+  - apt-get update && apt-get install -y qemu-guest-agent
+  - systemctl enable --now qemu-guest-agent
   - mkdir -p /etc/rancher/rke2
   - |
     cat <<EOF > /etc/rancher/rke2/config.yaml
