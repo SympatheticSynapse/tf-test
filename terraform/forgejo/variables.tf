@@ -108,10 +108,6 @@ variable "ssh_public_key_path" {
   type        = string
   default     = "~/.ssh/id_rsa.pub"
 }
-variable "ssh_public_keys" {
-  description = "SSH public keys authorized on the VM"
-  type        = list(string)
-}
 
 variable "ci_user_password_hash" {
   description = "SHA-512 crypt hash for the 'forgejo' cloud-init user (generate with: openssl passwd -6). Key-based auth is still preferred; this is a fallback for console access."

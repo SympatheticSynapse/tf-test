@@ -83,14 +83,6 @@ resource "proxmox_virtual_environment_vm" "forgejo" {
   operating_system {
     type = "l26"
   }
-
-  # Keep this VM off the node carrying your primary HDD/PBS pool -
-  # set proxmox_node accordingly rather than relying on scheduling.
-  lifecycle {
-    ignore_changes = [
-      clone,
-    ]
-  }
 }
 
 output "forgejo_vm_ip" {
