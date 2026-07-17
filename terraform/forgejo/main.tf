@@ -8,7 +8,7 @@ resource "proxmox_virtual_environment_file" "forgejo_userdata" {
   source_raw {
     file_name = "forgejo-userdata.yaml"
     data = templatefile("${path.module}/cloud-init/forgejo-userdata.yaml.tftpl", {
-      ssh_public_keys       = var.ssh_public_keys
+      ssh_public_keys       = [trimspace(data.local_file.ssh_public_key.content)]
       ci_user_password_hash = var.ci_user_password_hash
       forgejo_db_password   = var.forgejo_db_password
     })

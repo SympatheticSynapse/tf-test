@@ -1,3 +1,23 @@
+# ------------------------------------------------------------
+# Proxmox Provider
+# ------------------------------------------------------------
+variable "proxmox_api_url" {
+  description = "URL of the Proxmox API endpoint (e.g., https://192.168.3.10:8006)"
+  type        = string
+}
+
+variable "proxmox_api_token" {
+  description = "Proxmox API token in the format 'USER@REALM!TOKENID=SECRET'"
+  type        = string
+  sensitive   = true
+}
+
+variable "proxmox_insecure" {
+  description = "Skip TLS verification for the Proxmox API (set to false in production)"
+  type        = bool
+  default     = false
+}
+
 variable "proxmox_node" {
   description = "Proxmox node to place the Forgejo VM on. Pick a node other than the one carrying your primary HDD pool / PBS target."
   type        = string
@@ -67,6 +87,14 @@ variable "dns_servers" {
   default = ["10.0.10.1"]
 }
 
+# ------------------------------------------------------------
+# SSH
+# ------------------------------------------------------------
+variable "ssh_public_key_path" {
+  description = "Path to the SSH public key file to inject into the VM"
+  type        = string
+  default     = "~/.ssh/id_rsa.pub"
+}
 variable "ssh_public_keys" {
   description = "SSH public keys authorized on the VM"
   type        = list(string)
