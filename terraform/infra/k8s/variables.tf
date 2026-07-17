@@ -202,3 +202,14 @@ variable "cluster_vip" {
   type        = string
   default     = "10.10.10.10"
 }
+
+variable "vm_vip_interface" {
+  description = "Network interface name kube-vip should ARP on inside the CP VMs (verify with `ip a` in the cloud image - do not guess, wrong values silently fail to advertise the VIP)"
+  type        = string
+}
+
+variable "kube_vip_version" {
+  description = "kube-vip image tag to pin (check https://github.com/kube-vip/kube-vip/releases for current)"
+  type        = string
+  default     = "v1.2.1"
+}

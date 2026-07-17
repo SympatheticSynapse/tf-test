@@ -166,9 +166,12 @@ resource "proxmox_virtual_environment_file" "rke2_cp_bootstrap" {
   source_raw {
     file_name = "rke2-cp-bootstrap.yaml"
     data = templatefile("${path.module}/cloud-init/rke2-server-bootstrap.yaml.tpl", {
-      rke2_token   = var.rke2_token
-      rke2_version = var.rke2_version
-      tls_san      = var.cluster_vip
+      rke2_token       = var.rke2_token
+      rke2_version     = var.rke2_version
+      tls_san          = var.cluster_vip
+      cluster_vip      = var.cluster_vip
+      vip_interface    = var.vm_vip_interface
+      kube_vip_version = var.kube_vip_version
     })
   }
 }
@@ -184,10 +187,13 @@ resource "proxmox_virtual_environment_file" "rke2_cp_join" {
   source_raw {
     file_name = "rke2-cp-join-${each.key}.yaml"
     data = templatefile("${path.module}/cloud-init/rke2-server-join.yaml.tpl", {
-      rke2_token   = var.rke2_token
-      rke2_version = var.rke2_version
-      server_url   = "https://${split("/", var.proxmox_nodes[var.bootstrap_node].cp_ip)[0]}:9345"
-      tls_san      = var.cluster_vip
+      rke2_token       = var.rke2_token
+      rke2_version     = var.rke2_version
+      server_url       = "https://${split("/", var.proxmox_nodes[var.bootstrap_node].cp_ip)[0]}:9345"
+      tls_san          = var.cluster_vip
+      cluster_vip      = var.cluster_vip
+      vip_interface    = var.vm_vip_interface
+      kube_vip_version = var.kube_vip_version
     })
   }
 }
