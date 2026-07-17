@@ -93,10 +93,10 @@ write_files:
     content: |
       #!/bin/bash
       set -euo pipefail
-      # Idempotent: only creates role/db if they don't already exist.
-      sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='forgejo'" | grep -q 1 || \
-        sudo -u postgres psql -c "CREATE USER forgejo WITH PASSWORD '${forgejo_db_password}';"
-      sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='forgejo'" | grep -q 1 || \
+      # Idempotent: only creates role/db if they do not already exist.
+      sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname=$$forgejo$$" | grep -q 1 || \
+        sudo -u postgres psql -c "CREATE USER forgejo WITH PASSWORD ${"$pw$"}${forgejo_db_password}${"$pw$"};"
+      sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname=$$forgejo$$" | grep -q 1 || \
         sudo -u postgres createdb -O forgejo forgejo
 
   - path: /opt/forgejo/install-forgejo.sh
@@ -105,14 +105,14 @@ write_files:
       #!/bin/bash
       set -euo pipefail
       VERSION=$(curl -fsSL https://codeberg.org/api/v1/repos/forgejo/forgejo/releases?limit=1 \
-        | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
-      curl -fsSL "https://codeberg.org/forgejo/forgejo/releases/download/${VERSION}/forgejo-${VERSION#v}-linux-amd64" \
+        | grep -o "\"tag_name\":\"[^\"]*\"" | head -1 | cut -d\" -f4)
+      curl -fsSL "https://codeberg.org/forgejo/forgejo/releases/download/$${VERSION}/forgejo-$${VERSION#v}-linux-amd64" \
         -o /usr/local/bin/forgejo
       chmod +x /usr/local/bin/forgejo
-      echo "Installed Forgejo ${VERSION}"
+      echo "Installed Forgejo $${VERSION}"
 
 runcmd:
-  - adduser --system --shell /bin/bash --gecos 'Git Version Control' --group --disabled-password --home /home/git git
+  - adduser --system --shell /bin/bash --gecos "Git Version Control" --group --disabled-password --home /home/git git
   - mkdir -p /var/lib/forgejo/repositories /var/log/forgejo
   - chown -R git:git /var/lib/forgejo /var/log/forgejo /etc/forgejo
   - systemctl enable --now postgresql
@@ -121,4 +121,4 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable --now forgejo.service
 
-final_message: "Forgejo host ready after $UPTIME seconds. Visit http://<ip>:3000 - INSTALL_LOCK is set so the web install wizard is skipped; create the first admin user via: sudo -u git forgejo admin user create --admin --username <u> --password <p> --email <e> --config /etc/forgejo/app.ini"inal_message: "Forgejo host ready after $UPTIME seconds. Visit http://<ip>:3000 to finish install-wizard setup, then create an admin user via: docker exec -it forgejo forgejo admin user create --admin --username <u> --password <p> --email <e>"
+final_message: "Forgejo host ready after $UPTIME seconds. Visit http://<ip>:3000 - INSTALL_LOCK is set so the web install wizard is skipped; create the first admin user via: sudo -u git forgejo admin user create --admin --username <u> --password <p> --email <e> --config /etc/forgejo/app.ini"
