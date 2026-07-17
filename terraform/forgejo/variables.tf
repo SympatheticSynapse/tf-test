@@ -35,9 +35,22 @@ variable "vm_name" {
   default = "forgejo"
 }
 
-variable "template_vm_id" {
-  description = "VMID of the Debian 13 genericcloud template to clone (same template used for the K8s VMs)"
-  type        = number
+variable "linux_cloud_image_url" {
+  description = "URL of the Linux cloud image to download"
+  type        = string
+  default     = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
+}
+
+variable "linux_cloud_image_filename" {
+  description = "Filename to store the cloud image as (must end in .qcow2 for import)"
+  type        = string
+  default     = "debian-13-genericcloud-amd64.qcow2"
+}
+
+variable "image_datastore_id" {
+  description = "Proxmox datastore ID to store the downloaded cloud image"
+  type        = string
+  default     = "local"
 }
 
 variable "disk_datastore" {

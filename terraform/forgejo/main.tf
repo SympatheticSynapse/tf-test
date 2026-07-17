@@ -1,3 +1,16 @@
+# ------------------------------------------------------------
+# Linux Cloud Image Download
+# ------------------------------------------------------------
+resource "proxmox_download_file" "linux_cloud_image" {
+  content_type        = "import"
+  datastore_id        = var.image_datastore_id
+  node_name           = var.proxmox_node
+  url                 = var.linux_cloud_image_url
+  file_name           = var.linux_cloud_image_filename
+  overwrite           = true
+  overwrite_unmanaged = true
+}
+
 # Renders the cloud-init template and uploads it as a snippet so the VM's
 # initialization block can reference it via user_data_file_id.
 resource "proxmox_virtual_environment_file" "forgejo_userdata" {
@@ -21,11 +34,6 @@ resource "proxmox_virtual_environment_vm" "forgejo" {
   vm_id     = var.vm_id
   tags      = ["cicd", "forgejo", "terraform"]
 
-  clone {
-    vm_id = var.template_vm_id
-    full  = true
-  }
-
   cpu {
     cores = var.cores
     type  = "host"
@@ -37,15 +45,18 @@ resource "proxmox_virtual_environment_vm" "forgejo" {
 
   agent {
     enabled = true
+    timeout = "30s"
   }
+
+  scsi_hardware = "virtio-scsi-single"
 
   disk {
     datastore_id = var.disk_datastore
-    interface    = "scsi0"
-    size         = var.disk_size_gb
-    file_format  = "raw"
-    ssd          = true
+    import_from  = proxmox_download_file.linux_cloud_image.id
+    interface    = "virtio0"
+    iothread     = true
     discard      = "on"
+    size         = var.disk_size_gb
   }
 
   network_device {
