@@ -77,3 +77,9 @@ variable "ci_user_password_hash" {
   type        = string
   sensitive   = true
 }
+
+variable "forgejo_db_password" {
+  description = "Password for the 'forgejo' Postgres role/database, injected into the compose file"
+  type        = string
+  sensitive   = true
+}

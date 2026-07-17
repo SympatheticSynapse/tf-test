@@ -28,10 +28,29 @@ write_files:
     permissions: "0644"
     content: |
       services:
+        forgejo-db:
+          image: postgres:16-alpine
+          container_name: forgejo-db
+          restart: unless-stopped
+          environment:
+            - POSTGRES_USER=forgejo
+            - POSTGRES_PASSWORD=${forgejo_db_password}
+            - POSTGRES_DB=forgejo
+          volumes:
+            - /opt/forgejo/postgres:/var/lib/postgresql/data
+          healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U forgejo"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
         forgejo:
           image: codeberg.org/forgejo/forgejo:10
           container_name: forgejo
           restart: unless-stopped
+          depends_on:
+            forgejo-db:
+              condition: service_healthy
           environment:
             - USER_UID=1000
             - USER_GID=1000
@@ -41,7 +60,11 @@ write_files:
             - FORGEJO__actions__ENABLED=true
             - FORGEJO__actions__DEFAULT_ACTIONS_URL=github
             - FORGEJO__packages__ENABLED=true
-            - FORGEJO__database__DB_TYPE=sqlite3
+            - FORGEJO__database__DB_TYPE=postgres
+            - FORGEJO__database__HOST=forgejo-db:5432
+            - FORGEJO__database__NAME=forgejo
+            - FORGEJO__database__USER=forgejo
+            - FORGEJO__database__PASSWD=${forgejo_db_password}
           volumes:
             - /opt/forgejo/data:/data
             - /etc/timezone:/etc/timezone:ro
@@ -71,7 +94,7 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - mkdir -p /opt/forgejo/data
+  - mkdir -p /opt/forgejo/data /opt/forgejo/postgres
   - systemctl enable --now docker
   - systemctl daemon-reload
   - systemctl enable --now forgejo-compose.service

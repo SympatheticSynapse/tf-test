@@ -10,6 +10,7 @@ resource "proxmox_virtual_environment_file" "forgejo_userdata" {
     data = templatefile("${path.module}/cloud-init/forgejo-userdata.yaml.tftpl", {
       ssh_public_keys       = var.ssh_public_keys
       ci_user_password_hash = var.ci_user_password_hash
+      forgejo_db_password   = var.forgejo_db_password
     })
   }
 }

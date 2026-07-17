@@ -1,14 +1,29 @@
-# Adjust provisioner/parameters to whatever CSI you're running for the
-# vmdata-nodeX NVMe pools (e.g. democratic-csi, local-path-provisioner, or
-# the Proxmox CSI plugin). This is illustrative of intent: fast local
-# storage for build/cache workspace, not the HDD pool.
+# Requires the proxmox-csi-plugin controller/node daemonset already installed
+# (Helm chart from sergelogvinov/proxmox-csi-plugin), with a PVE API token and
+# a Secret holding the cluster connection config, plus each K8s node carrying
+# the topology.kubernetes.io/region (Proxmox cluster name) and
+# topology.kubernetes.io/zone (Proxmox node name) labels - normally set
+# automatically if you also run the Proxmox CCM.
+#
+# IMPORTANT CAVEAT for your setup: the `storage` parameter below must name a
+# Proxmox storage ID that exists under that exact ID on every zone (node) a
+# PV could land on. You currently have vmdata-node1/vmdata-node2/vmdata-node3
+# as three DIFFERENT storage IDs. The CSI plugin can't pick a different ID
+# per zone from one StorageClass. Rename them to a single shared ID (e.g.
+# "vmdata") scoped per-node via Datacenter -> Storage -> Nodes, the same
+# pattern local-lvm used - each node still points at its own physical NVMe,
+# they just share one name. Do that rename before applying this.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: nvme-fast
-provisioner: driver.longhorn.io   # replace with your actual CSI provisioner
+  name: proxmox-nvme
+allowVolumeExpansion: true
 parameters:
-  numberOfReplicas: "1"           # runner workspace is disposable, no need for replication
+  csi.storage.k8s.io/fstype: ext4
+  storage: vmdata          # shared storage ID across nodes, see caveat above
+  cache: writeback         # runner cache is disposable, favor speed
+  ssd: "true"
+provisioner: csi.proxmox.sinextra.dev
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 ---
@@ -19,7 +34,7 @@ metadata:
   namespace: forgejo-ci
 spec:
   accessModes: ["ReadWriteOnce"]
-  storageClassName: nvme-fast
+  storageClassName: proxmox-nvme
   resources:
     requests:
       storage: 100Gi

@@ -31,6 +31,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
 
   memory {
     dedicated = var.vm_cp_memory_mb
+    floating  = var.vm_cp_memory_mb
   }
 
   disk {
@@ -51,6 +52,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
   # Recommended: enable QEMU guest agent if installed in cloud image
   agent {
     enabled = var.vm_agent_enabled
+    timeout = "30s" # was defaulting to a much longer wait
   }
 
   # Recommended: set OS type for better defaults
@@ -100,6 +102,7 @@ resource "proxmox_virtual_environment_vm" "worker" {
 
   memory {
     dedicated = var.vm_wk_memory_mb
+    floating  = var.vm_wk_memory_mb
   }
 
   disk {
@@ -120,6 +123,7 @@ resource "proxmox_virtual_environment_vm" "worker" {
   # Recommended: enable QEMU guest agent if installed in cloud image
   agent {
     enabled = var.vm_agent_enabled
+    timeout = "30s" # was defaulting to a much longer wait
   }
 
   # Recommended: set OS type for better defaults
