@@ -4,7 +4,7 @@ manage_etc_hosts: true
 
 users:
   - name: forgejo-admin
-    groups: [sudo, docker]
+    groups: [sudo]
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
@@ -18,85 +18,107 @@ package_update: true
 package_upgrade: false
 
 packages:
-  - docker.io
-  - docker-compose-v2
-  - ca-certificates
+  - postgresql
+  - git
   - curl
+  - ca-certificates
+  - tar
 
 write_files:
-  - path: /opt/forgejo/docker-compose.yml
-    permissions: "0644"
+  - path: /etc/forgejo/app.ini
+    permissions: "0640"
     content: |
-      services:
-        forgejo-db:
-          image: postgres:16-alpine
-          container_name: forgejo-db
-          restart: unless-stopped
-          environment:
-            - POSTGRES_USER=forgejo
-            - POSTGRES_PASSWORD=${forgejo_db_password}
-            - POSTGRES_DB=forgejo
-          volumes:
-            - /opt/forgejo/postgres:/var/lib/postgresql/data
-          healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U forgejo"]
-            interval: 5s
-            timeout: 5s
-            retries: 10
+      RUN_MODE = prod
+      RUN_USER = git
+      WORK_PATH = /var/lib/forgejo
 
-        forgejo:
-          image: codeberg.org/forgejo/forgejo:10
-          container_name: forgejo
-          restart: unless-stopped
-          depends_on:
-            forgejo-db:
-              condition: service_healthy
-          environment:
-            - USER_UID=1000
-            - USER_GID=1000
-            - FORGEJO__server__DOMAIN=forgejo.lab.local
-            - FORGEJO__server__ROOT_URL=http://forgejo.lab.local:3000/
-            - FORGEJO__server__SSH_DOMAIN=forgejo.lab.local
-            - FORGEJO__actions__ENABLED=true
-            - FORGEJO__actions__DEFAULT_ACTIONS_URL=github
-            - FORGEJO__packages__ENABLED=true
-            - FORGEJO__database__DB_TYPE=postgres
-            - FORGEJO__database__HOST=forgejo-db:5432
-            - FORGEJO__database__NAME=forgejo
-            - FORGEJO__database__USER=forgejo
-            - FORGEJO__database__PASSWD=${forgejo_db_password}
-          volumes:
-            - /opt/forgejo/data:/data
-            - /etc/timezone:/etc/timezone:ro
-            - /etc/localtime:/etc/localtime:ro
-          ports:
-            - "3000:3000"
-            - "2222:22"
+      [server]
+      DOMAIN           = forgejo.corehomelab.net
+      ROOT_URL         = http://forgejo.corehomelab.net:3000/
+      HTTP_PORT        = 3000
+      START_SSH_SERVER = true
+      SSH_DOMAIN       = forgejo.corehomelab.net
+      SSH_PORT         = 2222
+      SSH_LISTEN_PORT  = 2222
 
-  - path: /etc/systemd/system/forgejo-compose.service
+      [database]
+      DB_TYPE = postgres
+      HOST    = 127.0.0.1:5432
+      NAME    = forgejo
+      USER    = forgejo
+      PASSWD  = ${forgejo_db_password}
+
+      [repository]
+      ROOT = /var/lib/forgejo/repositories
+
+      [actions]
+      ENABLED             = true
+      DEFAULT_ACTIONS_URL = github
+
+      [packages]
+      ENABLED = true
+
+      [security]
+      INSTALL_LOCK = true
+
+      [log]
+      MODE     = file
+      LEVEL    = info
+      ROOT_PATH = /var/log/forgejo
+
+  - path: /etc/systemd/system/forgejo.service
     permissions: "0644"
     content: |
       [Unit]
-      Description=Forgejo (docker compose)
-      Requires=docker.service
-      After=docker.service network-online.target
-      Wants=network-online.target
+      Description=Forgejo (binary)
+      After=network.target postgresql.service
+      Wants=postgresql.service
 
       [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=/opt/forgejo
-      ExecStart=/usr/bin/docker compose up -d
-      ExecStop=/usr/bin/docker compose down
-      TimeoutStartSec=0
+      Type=simple
+      User=git
+      Group=git
+      WorkingDirectory=/var/lib/forgejo
+      ExecStart=/usr/local/bin/forgejo web --config /etc/forgejo/app.ini
+      Restart=on-failure
+      RestartSec=5
+      Environment=USER=git HOME=/home/git FORGEJO_WORK_DIR=/var/lib/forgejo
+      LimitNOFILE=65535
 
       [Install]
       WantedBy=multi-user.target
 
-runcmd:
-  - mkdir -p /opt/forgejo/data /opt/forgejo/postgres
-  - systemctl enable --now docker
-  - systemctl daemon-reload
-  - systemctl enable --now forgejo-compose.service
+  - path: /opt/forgejo/bootstrap-db.sh
+    permissions: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      # Idempotent: only creates role/db if they don't already exist.
+      sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='forgejo'" | grep -q 1 || \
+        sudo -u postgres psql -c "CREATE USER forgejo WITH PASSWORD '${forgejo_db_password}';"
+      sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='forgejo'" | grep -q 1 || \
+        sudo -u postgres createdb -O forgejo forgejo
 
-final_message: "Forgejo host ready after $UPTIME seconds. Visit http://<ip>:3000 to finish install-wizard setup, then create an admin user via: docker exec -it forgejo forgejo admin user create --admin --username <u> --password <p> --email <e>"
+  - path: /opt/forgejo/install-forgejo.sh
+    permissions: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      VERSION=$(curl -fsSL https://codeberg.org/api/v1/repos/forgejo/forgejo/releases?limit=1 \
+        | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+      curl -fsSL "https://codeberg.org/forgejo/forgejo/releases/download/${VERSION}/forgejo-${VERSION#v}-linux-amd64" \
+        -o /usr/local/bin/forgejo
+      chmod +x /usr/local/bin/forgejo
+      echo "Installed Forgejo ${VERSION}"
+
+runcmd:
+  - adduser --system --shell /bin/bash --gecos 'Git Version Control' --group --disabled-password --home /home/git git
+  - mkdir -p /var/lib/forgejo/repositories /var/log/forgejo
+  - chown -R git:git /var/lib/forgejo /var/log/forgejo /etc/forgejo
+  - systemctl enable --now postgresql
+  - /opt/forgejo/bootstrap-db.sh
+  - /opt/forgejo/install-forgejo.sh
+  - systemctl daemon-reload
+  - systemctl enable --now forgejo.service
+
+final_message: "Forgejo host ready after $UPTIME seconds. Visit http://<ip>:3000 - INSTALL_LOCK is set so the web install wizard is skipped; create the first admin user via: sudo -u git forgejo admin user create --admin --username <u> --password <p> --email <e> --config /etc/forgejo/app.ini"inal_message: "Forgejo host ready after $UPTIME seconds. Visit http://<ip>:3000 to finish install-wizard setup, then create an admin user via: docker exec -it forgejo forgejo admin user create --admin --username <u> --password <p> --email <e>"

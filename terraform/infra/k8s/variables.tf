@@ -104,7 +104,7 @@ variable "vm_cpu_sockets" {
 variable "vm_cpu_type" {
   description = "CPU type/model (use 'host' for best performance, 'kvm64' for portability)"
   type        = string
-  default     = "x86-64-v2-AES"
+  default     = "host"
 }
 
 # ------------------------------------------------------------
@@ -128,19 +128,19 @@ variable "vm_wk_memory_mb" {
 variable "vm_cp_disk_size_gb" {
   description = "Size of the primary VM disk in gigabytes"
   type        = number
-  default     = 40
+  default     = 80
 }
 
 variable "vm_wk_disk_size_gb" {
   description = "Size of the primary VM disk in gigabytes"
   type        = number
-  default     = 60
+  default     = 120
 }
 
 variable "vm_ipv4_gateway" {
   description = "IPv4 default gateway"
   type        = string
-  default     = "192.168.3.1"
+  default     = "192.168.1.1"
 }
 
 variable "vm_network_bridge" {
