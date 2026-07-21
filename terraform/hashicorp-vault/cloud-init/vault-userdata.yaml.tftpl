@@ -1,0 +1,123 @@
+#cloud-config
+hostname: vault
+manage_etc_hosts: true
+
+users:
+  - name: vault-admin
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+%{ for key in ssh_public_keys ~}
+      - ${key}
+%{ endfor ~}
+    passwd: "${ci_user_password_hash}"
+    lock_passwd: false
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - unzip
+  - curl
+  - ca-certificates
+  - jq
+  - openssl
+
+write_files:
+  - path: /etc/vault.d/vault.hcl
+    permissions: "0640"
+    content: |
+      ui = true
+      disable_mlock = false
+
+      storage "raft" {
+        path    = "/opt/vault/data"
+        node_id = "vault-1"
+      }
+
+      listener "tcp" {
+        address       = "0.0.0.0:8200"
+        tls_cert_file = "/etc/vault.d/tls/vault.crt"
+        tls_key_file  = "/etc/vault.d/tls/vault.key"
+      }
+
+      api_addr     = "https://${vault_domain}:8200"
+      cluster_addr = "https://${vault_domain}:8201"
+
+  - path: /etc/systemd/system/vault.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=HashiCorp Vault
+      Documentation=https://developer.hashicorp.com/vault/docs
+      Requires=network-online.target
+      After=network-online.target
+      ConditionFileNotEmpty=/etc/vault.d/vault.hcl
+      StartLimitIntervalSec=60
+      StartLimitBurst=3
+
+      [Service]
+      Type=notify
+      User=vault
+      Group=vault
+      ProtectSystem=full
+      ProtectHome=read-only
+      PrivateTmp=yes
+      PrivateDevices=yes
+      SecureBits=keep-caps
+      AmbientCapabilities=CAP_IPC_LOCK
+      NoNewPrivileges=yes
+      ExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
+      ExecReload=/bin/kill --signal HUP $MAINPID
+      KillMode=process
+      KillSignal=SIGINT
+      Restart=on-failure
+      RestartSec=5
+      TimeoutStopSec=30
+      LimitNOFILE=65536
+      LimitMEMLOCK=infinity
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /opt/vault/install-vault.sh
+    permissions: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      curl -fsSL "https://releases.hashicorp.com/vault/${vault_version}/vault_${vault_version}_linux_amd64.zip" \
+        -o /tmp/vault.zip
+      unzip -o /tmp/vault.zip -d /usr/local/bin
+      chmod +x /usr/local/bin/vault
+      rm -f /tmp/vault.zip
+      setcap cap_ipc_lock=+ep /usr/local/bin/vault
+
+  - path: /opt/vault/gen-cert.sh
+    permissions: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      mkdir -p /etc/vault.d/tls
+      if [ ! -f /etc/vault.d/tls/vault.key ]; then
+        openssl req -x509 -newkey rsa:4096 -sha256 -days 825 -nodes \
+          -keyout /etc/vault.d/tls/vault.key \
+          -out /etc/vault.d/tls/vault.crt \
+          -subj "/CN=${vault_domain}" \
+          -addext "subjectAltName=DNS:${vault_domain},IP:127.0.0.1"
+      fi
+      chown -R vault:vault /etc/vault.d/tls
+      chmod 600 /etc/vault.d/tls/vault.key
+      chmod 644 /etc/vault.d/tls/vault.crt
+
+runcmd:
+  - adduser --system --shell /usr/sbin/nologin --group --disabled-password --home /etc/vault.d vault
+  - apt-get install -y libcap2-bin
+  - mkdir -p /opt/vault/data
+  - chown -R vault:vault /opt/vault/data /etc/vault.d
+  - /opt/vault/install-vault.sh
+  - /opt/vault/gen-cert.sh
+  - systemctl daemon-reload
+  - systemctl enable --now vault.service
+
+final_message: "Vault host ready after $UPTIME seconds. Service starts SEALED and UNINITIALIZED - this is expected. From this VM run: export VAULT_ADDR=https://127.0.0.1:8200 VAULT_SKIP_VERIFY=1 (self-signed cert) then: vault operator init -key-shares=5 -key-threshold=3 - SAVE the unseal keys and root token somewhere durable outside this VM immediately, they are shown exactly once."
